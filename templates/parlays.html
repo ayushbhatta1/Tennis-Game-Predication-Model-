@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parlay Builder - TennisPredict</title>
+<style>
+  :root {
+    --bg: #0a0f1a;
+    --card: #111827;
+    --card-hover: #1a2335;
+    --border: #1e293b;
+    --green: #10b981;
+    --green-dim: #065f46;
+    --red: #ef4444;
+    --red-dim: #7f1d1d;
+    --yellow: #f59e0b;
+    --yellow-dim: #78350f;
+    --blue: #3b82f6;
+    --purple: #8b5cf6;
+    --orange: #f97316;
+    --text: #f1f5f9;
+    --text-dim: #94a3b8;
+    --text-muted: #64748b;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg); color: var(--text); min-height: 100vh;
+  }
+
+  .header {
+    background: linear-gradient(135deg, #78350f 0%, #0a0f1a 70%);
+    border-bottom: 1px solid var(--border);
+    padding: 1.5rem 2rem;
+  }
+  .header-inner {
+    max-width: 1200px; margin: 0 auto;
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 1rem;
+  }
+  .logo { display: flex; align-items: center; gap: 0.75rem; }
+  .logo-icon {
+    width: 36px; height: 36px; background: var(--orange);
+    border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-size: 18px;
+  }
+  .logo h1 { font-size: 1.3rem; font-weight: 700; }
+  .logo h1 span { color: var(--orange); }
+  .nav-links { display: flex; gap: 0.5rem; align-items: center; }
+  .nav-links a {
+    color: var(--text-dim); text-decoration: none; font-size: 0.85rem;
+    font-weight: 500; padding: 0.4rem 0.8rem; border-radius: 6px; transition: all 0.2s;
+  }
+  .nav-links a:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+  .nav-links a.active { color: var(--orange); background: rgba(249,115,22,0.1); }
+
+  .controls { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+  .control-group { display: flex; align-items: center; gap: 0.4rem; }
+  .control-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; }
+  .control-input {
+    background: var(--card); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); padding: 0.4rem 0.6rem; font-size: 0.85rem; width: 80px;
+    outline: none;
+  }
+  .control-input:focus { border-color: var(--orange); }
+  .go-btn {
+    padding: 0.5rem 1.2rem; background: var(--orange); border: none;
+    border-radius: 6px; color: #000; font-weight: 700; font-size: 0.85rem;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .go-btn:hover { opacity: 0.9; }
+
+  .main { max-width: 1200px; margin: 0 auto; padding: 1.5rem 2rem 3rem; }
+
+  /* Strategy Guide */
+  .strategy-box {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem;
+  }
+  .strategy-box h3 {
+    font-size: 0.85rem; color: var(--orange); margin-bottom: 0.5rem;
+  }
+  .strategy-box p {
+    font-size: 0.8rem; color: var(--text-dim); line-height: 1.6;
+  }
+  .strategy-rules {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.5rem; margin-top: 0.75rem;
+  }
+  .rule {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-size: 0.78rem; color: var(--text-dim);
+  }
+  .rule-icon { font-size: 1rem; }
+
+  /* Stats bar */
+  .stats-bar {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.75rem; margin-bottom: 1.5rem;
+  }
+  .stat-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1rem; text-align: center;
+  }
+  .stat-card .label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .stat-card .value { font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem; }
+  .green { color: var(--green); } .red { color: var(--red); }
+  .yellow { color: var(--yellow); } .blue { color: var(--blue); }
+  .orange { color: var(--orange); }
+
+  .section-title {
+    font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;
+    letter-spacing: 0.08em; margin-bottom: 0.75rem; font-weight: 600;
+  }
+
+  /* Parlay Cards */
+  .parlays-grid { display: grid; gap: 1rem; }
+
+  .parlay-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden; transition: all 0.2s;
+  }
+  .parlay-card:hover { border-color: #2d3a4f; }
+  .parlay-card.positive-ev { border-left: 3px solid var(--green); }
+  .parlay-card.negative-ev { border-left: 3px solid var(--red); }
+
+  .parlay-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1rem 1.25rem; cursor: pointer;
+  }
+  .parlay-header:hover { background: var(--card-hover); }
+
+  .parlay-title { display: flex; align-items: center; gap: 0.75rem; }
+  .parlay-badge {
+    padding: 0.2rem 0.6rem; border-radius: 4px;
+    font-size: 0.7rem; font-weight: 700;
+  }
+  .badge-legs { background: var(--yellow-dim); color: var(--yellow); }
+  .badge-ev-pos { background: var(--green-dim); color: var(--green); }
+  .badge-ev-neg { background: var(--red-dim); color: var(--red); }
+
+  .parlay-headline {
+    font-size: 0.95rem; font-weight: 700;
+  }
+  .parlay-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem; }
+
+  .parlay-numbers { display: flex; gap: 1.5rem; align-items: center; }
+  .parlay-num { text-align: center; }
+  .parlay-num .n-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; }
+  .parlay-num .n-value { font-size: 1.1rem; font-weight: 700; }
+
+  .parlay-body { display: none; padding: 0 1.25rem 1.25rem; }
+  .parlay-card.expanded .parlay-body { display: block; }
+
+  .leg-row {
+    display: grid;
+    grid-template-columns: 2.5fr 1fr 1fr 1fr 0.8fr;
+    gap: 0.5rem; align-items: center;
+    padding: 0.6rem 0; border-bottom: 1px solid var(--border);
+    font-size: 0.82rem;
+  }
+  .leg-row:last-child { border-bottom: none; }
+  .leg-pick { font-weight: 700; }
+  .leg-vs { font-size: 0.7rem; color: var(--text-muted); }
+  .leg-edge {
+    padding: 0.15rem 0.5rem; border-radius: 4px;
+    font-size: 0.72rem; font-weight: 700; text-align: center;
+  }
+  .edge-pos { background: var(--green-dim); color: var(--green); }
+  .edge-neg { background: var(--red-dim); color: var(--red); }
+
+  .bet-box {
+    background: #1a1f2e; border-radius: 8px; padding: 1rem;
+    margin-top: 0.75rem;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.75rem;
+  }
+  .bet-item { text-align: center; }
+  .bet-item .b-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; }
+  .bet-item .b-value { font-size: 1.1rem; font-weight: 700; margin-top: 0.2rem; }
+
+  /* Available Legs */
+  .legs-table { width: 100%; border-collapse: collapse; }
+  .legs-table th {
+    text-align: left; padding: 0.5rem 0.75rem; font-size: 0.7rem;
+    color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border);
+  }
+  .legs-table td {
+    padding: 0.5rem 0.75rem; font-size: 0.82rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .table-container {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden;
+  }
+  .table-scroll { max-height: 400px; overflow-y: auto; }
+
+  .loading-state { text-align: center; padding: 4rem 2rem; color: var(--text-muted); }
+  .spinner {
+    width: 40px; height: 40px; border: 3px solid var(--border);
+    border-top-color: var(--orange); border-radius: 50%;
+    animation: spin 0.8s linear infinite; margin: 0 auto 1rem;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-state {
+    text-align: center; padding: 3rem; color: var(--red);
+    background: var(--card); border-radius: 12px; border: 1px solid var(--red-dim);
+  }
+
+  @media (max-width: 640px) {
+    .header { padding: 1rem; }
+    .main { padding: 1rem; }
+    .parlay-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+    .leg-row { grid-template-columns: 1fr 1fr; }
+    .bet-box { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">$</div>
+      <h1>Tennis<span>Predict</span> Parlays</h1>
+    </div>
+    <div class="nav-links">
+      <a href="/">Predictions</a>
+      <a href="/backtest">Backtest</a>
+      <a href="/parlays" class="active">Parlays</a>
+    </div>
+    <div class="controls">
+      <div class="control-group">
+        <span class="control-label">Bankroll $</span>
+        <input type="number" class="control-input" id="bankrollInput" value="120" min="1">
+      </div>
+      <div class="control-group">
+        <span class="control-label">Max Legs</span>
+        <input type="number" class="control-input" id="maxLegsInput" value="4" min="2" max="6" style="width:50px">
+      </div>
+      <button class="go-btn" onclick="loadParlays()">Find Parlays</button>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="strategy-box">
+    <h3>Parlay Strategy Guide</h3>
+    <p>Parlays multiply odds but compound the vig. The market is efficient — no individual tennis bet has a true edge after vig. But you can minimize the house take by using the best available odds per sportsbook, favoring high-probability picks, and keeping parlays short.</p>
+    <div class="strategy-rules">
+      <div class="rule"><span class="rule-icon" style="color:var(--green)">&#10003;</span> Best available odds across 30+ sportsbooks</div>
+      <div class="rule"><span class="rule-icon" style="color:var(--green)">&#10003;</span> Keep it to 2-3 legs (vig compounds fast)</div>
+      <div class="rule"><span class="rule-icon" style="color:var(--green)">&#10003;</span> Conservative bet sizing (max 5% of bankroll)</div>
+      <div class="rule"><span class="rule-icon" style="color:var(--red)">&#10007;</span> No bet is guaranteed — manage your risk</div>
+    </div>
+  </div>
+
+  <div id="content">
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <div>Finding best parlays...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function formatTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+}
+
+function renderParlay(p, idx) {
+  const picks = p.legs.map(l => l.pick.split(' ').pop()).join(' + ');
+  const evBadge = p.ev_pct >= 0
+    ? `<span class="parlay-badge badge-ev-pos">EV +${p.ev_pct}%</span>`
+    : `<span class="parlay-badge badge-ev-neg">EV ${p.ev_pct}%</span>`;
+
+  let legsHtml = `<div class="leg-row" style="font-weight:600;color:var(--text-muted);font-size:0.7rem;border-bottom:1px solid var(--border)">
+    <div>PICK</div><div>MODEL %</div><div>BOOK %</div><div>BEST ODDS</div><div>VIG</div>
+  </div>`;
+  for (const leg of p.legs) {
+    legsHtml += `
+      <div class="leg-row">
+        <div>
+          <div class="leg-pick">${leg.pick}</div>
+          <div class="leg-vs">vs ${leg.opponent} &middot; ${leg.league} &middot; ${formatTime(leg.starts_at)}</div>
+          <div style="font-size:0.65rem;color:var(--text-muted);margin-top:0.15rem">Best @ ${leg.best_book}</div>
+        </div>
+        <div style="color:var(--green)">${leg.model_prob}%</div>
+        <div style="color:var(--text-muted)">${leg.book_implied}%</div>
+        <div><strong>${leg.book_odds}</strong></div>
+        <div><span class="leg-edge edge-neg">${leg.vig}% vig</span></div>
+      </div>`;
+  }
+
+  return `
+    <div class="parlay-card ${p.ev_pct >= 0 ? 'positive-ev' : 'negative-ev'}" onclick="this.classList.toggle('expanded')">
+      <div class="parlay-header">
+        <div class="parlay-title">
+          <span class="parlay-badge badge-legs">${p.num_legs}-LEG</span>
+          ${evBadge}
+          <div>
+            <div class="parlay-headline">${picks}</div>
+            <div class="parlay-sub">Win prob: ${p.true_prob}% &middot; Odds: ${p.parlay_odds} (${p.decimal_odds}x)</div>
+          </div>
+        </div>
+        <div class="parlay-numbers">
+          <div class="parlay-num">
+            <div class="n-label">Bet</div>
+            <div class="n-value orange">$${p.suggested_bet}</div>
+          </div>
+          <div class="parlay-num">
+            <div class="n-label">Win</div>
+            <div class="n-value green">$${p.potential_payout}</div>
+          </div>
+          <div class="parlay-num">
+            <div class="n-label">Profit</div>
+            <div class="n-value green">+$${p.potential_profit}</div>
+          </div>
+        </div>
+      </div>
+      <div class="parlay-body">
+        ${legsHtml}
+        <div class="bet-box">
+          <div class="bet-item"><div class="b-label">Combined Odds</div><div class="b-value">${p.parlay_odds} (${p.decimal_odds}x)</div></div>
+          <div class="bet-item"><div class="b-label">True Win Prob</div><div class="b-value green">${p.true_prob}%</div></div>
+          <div class="bet-item"><div class="b-label">Book Implied</div><div class="b-value" style="color:var(--text-muted)">${p.implied_prob}%</div></div>
+          <div class="bet-item"><div class="b-label">Total Vig</div><div class="b-value red">${p.total_vig}%</div></div>
+          <div class="bet-item"><div class="b-label">EV per $1</div><div class="b-value ${p.ev_pct >= 0 ? 'green' : 'red'}">${p.ev_pct >= 0 ? '+' : ''}${p.ev_pct}%</div></div>
+          <div class="bet-item"><div class="b-label">Avg Leg Prob</div><div class="b-value">${p.avg_leg_prob}%</div></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderSection(title, parlays, emptyMsg) {
+  if (!parlays || parlays.length === 0) return `<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem">${emptyMsg}</div>`;
+  let html = `<div class="section-title">${title}</div><div class="parlays-grid">`;
+  for (let i = 0; i < parlays.length; i++) html += renderParlay(parlays[i], i);
+  html += `</div>`;
+  return html;
+}
+
+function renderParlays(data) {
+  let html = '';
+
+  // Stats
+  html += `
+    <div class="stats-bar">
+      <div class="stat-card"><div class="label">Matches</div><div class="value blue">${data.total_legs}</div></div>
+      <div class="stat-card"><div class="label">Combos</div><div class="value orange">${data.stats.total_combos.toLocaleString()}</div></div>
+      <div class="stat-card"><div class="label">Bankroll</div><div class="value green">$${data.bankroll}</div></div>
+      <div class="stat-card"><div class="label">Least Vig</div><div class="value ${data.stats.best_ev >= 0 ? 'green' : 'yellow'}">${(data.stats.best_ev * 100).toFixed(1)}%</div></div>
+    </div>
+  `;
+
+  // Three strategy sections
+  html += renderSection(
+    'Conservative &mdash; Highest Win Probability',
+    data.conservative,
+    'No conservative parlays found.'
+  );
+
+  html += '<div style="margin-top:1.5rem"></div>';
+
+  html += renderSection(
+    'Balanced &mdash; Best Risk/Reward (Least Vig)',
+    data.balanced,
+    'No balanced parlays found.'
+  );
+
+  html += '<div style="margin-top:1.5rem"></div>';
+
+  html += renderSection(
+    'Aggressive &mdash; Highest Payout Potential',
+    data.aggressive,
+    'No aggressive parlays found.'
+  );
+
+  // Top Overall
+  if (data.top_parlays && data.top_parlays.length > 0) {
+    html += '<div style="margin-top:1.5rem"></div>';
+    html += renderSection('All Top Picks (Ranked)', data.top_parlays, '');
+  }
+
+  // Available Legs
+  if (data.viable_legs && data.viable_legs.length > 0) {
+    html += `
+      <div style="margin-top:2rem">
+        <div class="section-title">Available Legs (Ranked by Edge)</div>
+        <div class="table-container">
+          <div class="table-scroll">
+            <table class="legs-table">
+              <thead><tr>
+                <th>Pick</th>
+                <th>vs</th>
+                <th>League</th>
+                <th>Model Prob</th>
+                <th>Book Implied</th>
+                <th>Book Odds</th>
+                <th>Edge</th>
+                <th>Confidence</th>
+              </tr></thead>
+              <tbody>
+    `;
+    for (const leg of data.viable_legs) {
+      const edgeClass = leg.edge > 0 ? 'green' : 'red';
+      html += `<tr>
+        <td style="font-weight:700">${leg.pick}</td>
+        <td style="color:var(--text-muted)">${leg.opponent}</td>
+        <td>${leg.league}</td>
+        <td>${leg.model_prob}%</td>
+        <td style="color:var(--text-muted)">${leg.book_implied}%</td>
+        <td><strong>${leg.book_odds}</strong></td>
+        <td class="${edgeClass}" style="font-weight:700">${leg.edge > 0 ? '+' : ''}${leg.edge}%</td>
+        <td>${leg.confidence}%</td>
+      </tr>`;
+    }
+    html += `</tbody></table></div></div></div>`;
+  }
+
+  document.getElementById('content').innerHTML = html;
+}
+
+async function loadParlays() {
+  const bankroll = document.getElementById('bankrollInput').value || 120;
+  const maxLegs = document.getElementById('maxLegsInput').value || 4;
+  const content = document.getElementById('content');
+
+  content.innerHTML = `<div class="loading-state"><div class="spinner"></div><div>Finding best parlays...</div></div>`;
+
+  try {
+    const resp = await fetch(`/api/parlays?bankroll=${bankroll}&max_legs=${maxLegs}`);
+    const data = await resp.json();
+    if (!data.success) throw new Error(data.error || 'Failed');
+    renderParlays(data);
+  } catch (err) {
+    content.innerHTML = `<div class="error-state">Failed: ${err.message}</div>`;
+  }
+}
+
+loadParlays();
+</script>
+</body>
+</html>

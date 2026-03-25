@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Backtest - TennisPredict</title>
+<style>
+  :root {
+    --bg: #0a0f1a;
+    --card: #111827;
+    --card-hover: #1a2335;
+    --border: #1e293b;
+    --green: #10b981;
+    --green-dim: #065f46;
+    --red: #ef4444;
+    --red-dim: #7f1d1d;
+    --yellow: #f59e0b;
+    --blue: #3b82f6;
+    --purple: #8b5cf6;
+    --text: #f1f5f9;
+    --text-dim: #94a3b8;
+    --text-muted: #64748b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  .header {
+    background: linear-gradient(135deg, #1e1b4b 0%, #0a0f1a 70%);
+    border-bottom: 1px solid var(--border);
+    padding: 1.5rem 2rem;
+  }
+
+  .header-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .logo { display: flex; align-items: center; gap: 0.75rem; }
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: var(--purple);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .logo h1 { font-size: 1.3rem; font-weight: 700; }
+  .logo h1 span { color: var(--purple); }
+
+  .nav-links { display: flex; gap: 1rem; align-items: center; }
+  .nav-links a {
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+  .nav-links a:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+  .nav-links a.active { color: var(--purple); background: rgba(139,92,246,0.1); }
+
+  .controls {
+    display: flex; gap: 0.5rem; align-items: center;
+  }
+
+  .pill-group {
+    display: flex;
+    background: var(--card);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .pill {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .pill:hover { color: var(--text); }
+  .pill.active { background: var(--purple); color: #fff; }
+
+  .main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.5rem 2rem 3rem;
+  }
+
+  /* Hero Stats */
+  .hero-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+  }
+
+  .hero-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    text-align: center;
+  }
+  .hero-card .label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .hero-card .value {
+    font-size: 2rem;
+    font-weight: 800;
+    margin: 0.3rem 0;
+  }
+  .hero-card .sub {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+  }
+  .green { color: var(--green); }
+  .red { color: var(--red); }
+  .blue { color: var(--blue); }
+  .yellow { color: var(--yellow); }
+  .purple { color: var(--purple); }
+
+  /* Sections */
+  .section {
+    margin-bottom: 2rem;
+  }
+  .section-title {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+  }
+
+  /* Calibration Chart */
+  .calibration-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+  }
+
+  .cal-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem;
+  }
+  .cal-card .range {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    margin-bottom: 0.5rem;
+  }
+  .cal-bar-container {
+    position: relative;
+    height: 28px;
+    background: #1a1f2e;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 0.4rem;
+  }
+  .cal-bar-predicted {
+    position: absolute;
+    top: 0; left: 0;
+    height: 100%;
+    background: rgba(139,92,246,0.3);
+    border-right: 2px dashed var(--purple);
+    transition: width 0.5s;
+  }
+  .cal-bar-actual {
+    position: absolute;
+    top: 0; left: 0;
+    height: 100%;
+    background: rgba(16,185,129,0.4);
+    border-radius: 6px 0 0 6px;
+    transition: width 0.5s;
+  }
+  .cal-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+  }
+  .cal-labels .predicted { color: var(--purple); }
+  .cal-labels .actual { color: var(--green); }
+  .cal-count {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 0.2rem;
+  }
+
+  /* Confidence Accuracy */
+  .conf-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+  }
+  .conf-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem;
+    text-align: center;
+  }
+  .conf-card .conf-level {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+  .conf-card .conf-acc {
+    font-size: 1.8rem;
+    font-weight: 800;
+  }
+  .conf-card .conf-count {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.3rem;
+  }
+
+  /* Match Results Table */
+  .results-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .results-table th {
+    text-align: left;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border);
+  }
+  .results-table td {
+    padding: 0.6rem 0.75rem;
+    font-size: 0.82rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  .results-table tr:hover { background: var(--card-hover); }
+
+  .result-badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+  }
+  .result-correct { background: var(--green-dim); color: var(--green); }
+  .result-wrong { background: var(--red-dim); color: var(--red); }
+  .result-upset { background: #78350f; color: var(--yellow); }
+
+  .table-container {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .table-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .table-filter {
+    display: flex; gap: 0.4rem;
+  }
+  .filter-btn {
+    padding: 0.3rem 0.7rem;
+    font-size: 0.75rem;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .filter-btn:hover { border-color: var(--purple); color: var(--purple); }
+  .filter-btn.active { background: var(--purple); color: #fff; border-color: var(--purple); }
+
+  .table-scroll {
+    max-height: 500px;
+    overflow-y: auto;
+  }
+  .table-scroll::-webkit-scrollbar { width: 6px; }
+  .table-scroll::-webkit-scrollbar-track { background: var(--card); }
+  .table-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* Value Bets Section */
+  .value-grid {
+    display: grid;
+    gap: 0.5rem;
+  }
+  .value-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 80px 80px 80px;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0.6rem 0.75rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.8rem;
+  }
+  .profit-positive { color: var(--green); font-weight: 700; }
+  .profit-negative { color: var(--red); font-weight: 700; }
+
+  /* Loading / Error */
+  .loading-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--text-muted);
+  }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--purple);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 1rem;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-state {
+    text-align: center;
+    padding: 3rem;
+    color: var(--red);
+    background: var(--card);
+    border-radius: 12px;
+    border: 1px solid var(--red-dim);
+  }
+
+  /* Verdict banner */
+  .verdict {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    text-align: center;
+  }
+  .verdict .grade {
+    font-size: 3rem;
+    font-weight: 900;
+    margin-bottom: 0.25rem;
+  }
+  .verdict .grade-label {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+  }
+
+  /* Yearly & Monthly */
+  .yearly-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.75rem;
+  }
+  .year-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem;
+    text-align: center;
+  }
+  .year-card .year { font-size: 1rem; font-weight: 700; color: var(--text-dim); }
+  .year-card .acc { font-size: 1.6rem; font-weight: 800; margin: 0.2rem 0; }
+  .year-card .count { font-size: 0.7rem; color: var(--text-muted); }
+
+  .monthly-chart {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    overflow-x: auto;
+  }
+  .chart-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 160px;
+    min-width: max-content;
+    padding-bottom: 1.5rem;
+    position: relative;
+  }
+  .chart-bar-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 36px;
+    height: 100%;
+    justify-content: flex-end;
+    position: relative;
+  }
+  .chart-bar {
+    width: 100%;
+    border-radius: 4px 4px 0 0;
+    transition: height 0.5s;
+    cursor: pointer;
+    position: relative;
+  }
+  .chart-bar:hover { opacity: 0.8; }
+  .chart-bar .tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e293b;
+    border: 1px solid var(--border);
+    padding: 0.3rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    z-index: 10;
+  }
+  .chart-bar:hover .tooltip { display: block; }
+  .chart-label {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    margin-top: 0.3rem;
+    transform: rotate(-45deg);
+    transform-origin: center;
+    white-space: nowrap;
+    position: absolute;
+    bottom: -20px;
+  }
+  .chart-baseline {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 1px dashed var(--text-muted);
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    padding-left: 2px;
+  }
+
+  /* League pills */
+  .league-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+  .league-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem;
+    text-align: center;
+  }
+  .league-card .league-name { font-size: 0.85rem; font-weight: 700; }
+  .league-card .league-acc { font-size: 1.8rem; font-weight: 800; margin: 0.3rem 0; }
+  .league-card .league-count { font-size: 0.75rem; color: var(--text-muted); }
+
+  @media (max-width: 640px) {
+    .header { padding: 1rem; }
+    .main { padding: 1rem; }
+    .hero-stats { grid-template-columns: repeat(2, 1fr); }
+    .conf-grid { grid-template-columns: 1fr; }
+    .calibration-grid { grid-template-columns: 1fr 1fr; }
+    .value-row { grid-template-columns: 1fr 1fr; }
+    .league-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">&#9881;</div>
+      <h1>Tennis<span>Predict</span> Backtest</h1>
+    </div>
+    <div class="nav-links">
+      <a href="/">Predictions</a>
+      <a href="/backtest" class="active">Backtest</a>
+    </div>
+    <div class="controls">
+      <div class="pill-group" id="periodPills">
+        <button class="pill" data-period="1month">1M</button>
+        <button class="pill" data-period="3months">3M</button>
+        <button class="pill" data-period="6months">6M</button>
+        <button class="pill" data-period="1year">1Y</button>
+        <button class="pill" data-period="2years">2Y</button>
+        <button class="pill active" data-period="all">All Data</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div id="content">
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <div>Running backtest... fetching historical data</div>
+      <div style="margin-top:0.5rem;font-size:0.8rem;color:#475569">First run fetches all historical data and may take 1-2 minutes. Subsequent loads are cached.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentPeriod = 'all';
+let currentFilter = 'all';
+
+document.querySelectorAll('#periodPills .pill').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#periodPills .pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentPeriod = btn.dataset.period;
+    loadBacktest();
+  });
+});
+
+function pct(n) { return n + '%'; }
+
+function gradeModel(accuracy, calibration, valueROI) {
+  let score = 0;
+  if (accuracy >= 70) score += 3;
+  else if (accuracy >= 65) score += 2;
+  else if (accuracy >= 60) score += 1;
+
+  // Check calibration - are predicted %s close to actual %s?
+  let calError = 0;
+  let calCount = 0;
+  for (const [range, data] of Object.entries(calibration)) {
+    if (data.total > 0) {
+      calError += Math.abs(data.avg_predicted_pct - data.actual_pct);
+      calCount++;
+    }
+  }
+  const avgCalError = calCount > 0 ? calError / calCount : 50;
+  if (avgCalError < 5) score += 3;
+  else if (avgCalError < 10) score += 2;
+  else if (avgCalError < 15) score += 1;
+
+  if (valueROI > 5) score += 2;
+  else if (valueROI > 0) score += 1;
+
+  const grades = ['F', 'D', 'D+', 'C', 'C+', 'B', 'B+', 'A', 'A+'];
+  const grade = grades[Math.min(score, grades.length - 1)];
+  const colors = { 'A+': 'green', 'A': 'green', 'B+': 'green', 'B': 'blue', 'C+': 'yellow', 'C': 'yellow', 'D+': 'red', 'D': 'red', 'F': 'red' };
+  return { grade, color: colors[grade] || 'text-dim' };
+}
+
+function renderBacktest(data) {
+  const s = data.summary;
+  const hasOpening = s.matches_with_opening_odds > 0;
+  const trueAcc = hasOpening ? s.opening_odds_accuracy : s.accuracy;
+  const g = gradeModel(trueAcc, data.calibration, s.value_roi);
+
+  let html = '';
+
+  // Verdict - use opening odds accuracy as the real grade
+  html += `
+    <div class="verdict">
+      <div class="grade ${g.color}">${g.grade}</div>
+      <div class="grade-label">Model Grade &mdash; ${s.date_range} &mdash; ${s.total_matches.toLocaleString()} matches analyzed</div>
+    </div>
+  `;
+
+  // Data quality notice
+  if (hasOpening && s.matches_with_opening_odds < s.total_matches) {
+    const closingCount = s.total_matches - s.matches_with_opening_odds;
+    html += `
+      <div style="background:#1e1b4b;border:1px solid #3730a3;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.5rem;font-size:0.8rem;color:var(--text-dim);line-height:1.5">
+        <strong style="color:var(--purple)">Data Quality Note:</strong>
+        Only <strong>${s.matches_with_opening_odds.toLocaleString()}</strong> matches have true pre-match opening odds (the honest test).
+        The remaining <strong>${closingCount.toLocaleString()}</strong> use closing odds which are influenced by live betting and inflate accuracy.
+        The <strong style="color:var(--green)">${s.opening_odds_accuracy}%</strong> accuracy on opening odds is the real model performance.
+      </div>
+    `;
+  }
+
+  // Hero stats
+  html += `
+    <div class="hero-stats">
+      <div class="hero-card" style="border-color:var(--green)">
+        <div class="label">True Accuracy (Pre-Match Odds)</div>
+        <div class="value ${trueAcc >= 60 ? 'green' : 'red'}">${trueAcc}%</div>
+        <div class="sub">${hasOpening ? s.matches_with_opening_odds.toLocaleString() + ' matches with opening odds' : s.correct.toLocaleString() + ' / ' + s.total_matches.toLocaleString()}</div>
+      </div>
+      <div class="hero-card">
+        <div class="label">Total Matches</div>
+        <div class="value blue">${s.total_matches.toLocaleString()}</div>
+        <div class="sub">${s.date_range}</div>
+      </div>
+      <div class="hero-card">
+        <div class="label">Overall Accuracy</div>
+        <div class="value" style="color:var(--text-dim)">${s.accuracy}%</div>
+        <div class="sub">${s.correct.toLocaleString()} / ${s.total_matches.toLocaleString()} (includes closing odds)</div>
+      </div>
+      <div class="hero-card">
+        <div class="label">Value Bets</div>
+        <div class="value yellow">${s.total_value_bets.toLocaleString()}</div>
+        <div class="sub">Win rate: ${s.value_win_rate}% | ROI: ${s.value_roi > 0 ? '+' : ''}${s.value_roi}%</div>
+      </div>
+      <div class="hero-card">
+        <div class="label">Upsets Missed</div>
+        <div class="value red">${s.num_upsets}</div>
+        <div class="sub">Predicted 60%+ favorite lost</div>
+      </div>
+    </div>
+  `;
+
+  // Neural Network Comparison
+  const nn = data.nn_stats;
+  if (nn && nn.available) {
+    html += `
+      <div class="section">
+        <div class="section-title">Neural Network vs Odds Model</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem">
+          <div class="hero-card" style="border-color:var(--green)">
+            <div class="label">Odds Model (Opening Odds)</div>
+            <div class="value green">${s.opening_odds_accuracy}%</div>
+            <div class="sub">${s.matches_with_opening_odds.toLocaleString()} matches</div>
+          </div>
+          <div class="hero-card" style="border-color:#8b5cf6">
+            <div class="label">Neural Network (Opening Odds)</div>
+            <div class="value purple">${nn.opening_accuracy}%</div>
+            <div class="sub">${nn.opening_total.toLocaleString()} matches</div>
+          </div>
+        </div>
+    `;
+
+    // NN Calibration side-by-side
+    html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">`;
+
+    // Odds calibration
+    html += `<div><div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.5rem;font-weight:600">Odds Model Calibration</div>`;
+    for (const [range, d] of Object.entries(data.calibration)) {
+      if (d.total === 0) continue;
+      html += `<div class="cal-card" style="margin-bottom:0.4rem">
+        <div class="range">${range}%</div>
+        <div class="cal-bar-container"><div class="cal-bar-predicted" style="width:${d.avg_predicted_pct}%"></div><div class="cal-bar-actual" style="width:${d.actual_pct}%"></div></div>
+        <div class="cal-labels"><span class="predicted">Pred: ${d.avg_predicted_pct}%</span><span class="actual">Actual: ${d.actual_pct}%</span></div>
+        <div class="cal-count">${d.total}</div>
+      </div>`;
+    }
+    html += `</div>`;
+
+    // NN calibration
+    html += `<div><div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.5rem;font-weight:600">Neural Net Calibration</div>`;
+    for (const [range, d] of Object.entries(nn.calibration)) {
+      if (d.total === 0) continue;
+      html += `<div class="cal-card" style="margin-bottom:0.4rem">
+        <div class="range">${range}%</div>
+        <div class="cal-bar-container"><div class="cal-bar-predicted" style="width:${d.avg_predicted_pct}%;background:rgba(139,92,246,0.3);border-color:#8b5cf6"></div><div class="cal-bar-actual" style="width:${d.actual_pct}%"></div></div>
+        <div class="cal-labels"><span style="color:#8b5cf6">Pred: ${d.avg_predicted_pct}%</span><span class="actual">Actual: ${d.actual_pct}%</span></div>
+        <div class="cal-count">${d.total}</div>
+      </div>`;
+    }
+    html += `</div></div>`;
+
+    // NN monthly accuracy overlay
+    if (nn.monthly && nn.monthly.length > 1 && data.monthly_accuracy && data.monthly_accuracy.length > 1) {
+      html += `<div style="margin-top:1rem;font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;font-weight:600;margin-bottom:0.5rem">Monthly: Odds (green) vs NN (purple)</div>`;
+      html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:0.4rem">`;
+      const nnMap = {};
+      for (const m of nn.monthly) nnMap[m.month] = m;
+      for (const m of data.monthly_accuracy) {
+        const nm = nnMap[m.month];
+        html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:0.5rem;text-align:center;font-size:0.75rem">
+          <div style="color:var(--text-muted)">${m.month}</div>
+          <div><span class="green">${m.accuracy}%</span> ${nm ? `<span style="color:#8b5cf6">${nm.accuracy}%</span>` : ''}</div>
+          <div style="color:var(--text-muted);font-size:0.65rem">${m.total} matches</div>
+        </div>`;
+      }
+      html += `</div>`;
+    }
+
+    html += `</div>`;
+  }
+
+  // Mega Ensemble Comparison
+  const mega = data.mega_stats;
+  if (mega && mega.available) {
+    html += `
+      <div class="section">
+        <div class="section-title">Mega Ensemble Model</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;margin-bottom:1rem">
+          <div class="hero-card" style="border-color:var(--green)">
+            <div class="label">Odds Model</div>
+            <div class="value green">${s.opening_odds_accuracy}%</div>
+            <div class="sub">${s.matches_with_opening_odds.toLocaleString()} matches</div>
+          </div>
+          <div class="hero-card" style="border-color:#8b5cf6">
+            <div class="label">Neural Network</div>
+            <div class="value purple">${nn && nn.available ? nn.accuracy : 'N/A'}%</div>
+            <div class="sub">${nn && nn.available ? nn.total.toLocaleString() : '0'} matches</div>
+          </div>
+          <div class="hero-card" style="border-color:var(--blue)">
+            <div class="label">Mega Ensemble</div>
+            <div class="value blue">${mega.accuracy}%</div>
+            <div class="sub">${mega.total.toLocaleString()} matches</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Yearly Breakdown
+  if (data.yearly_stats && Object.keys(data.yearly_stats).length > 0) {
+    html += `<div class="section"><div class="section-title">Accuracy by Year</div><div class="yearly-grid">`;
+    for (const [year, ys] of Object.entries(data.yearly_stats).sort()) {
+      const color = ys.accuracy >= 68 ? 'green' : ys.accuracy >= 62 ? 'yellow' : 'red';
+      html += `
+        <div class="year-card">
+          <div class="year">${year}</div>
+          <div class="acc ${color}">${ys.accuracy}%</div>
+          <div class="count">${ys.correct} / ${ys.total} matches</div>
+        </div>
+      `;
+    }
+    html += `</div></div>`;
+  }
+
+  // Monthly Accuracy Chart
+  if (data.monthly_accuracy && data.monthly_accuracy.length > 1) {
+    const maxAcc = 100;
+    const minDisplay = 40;
+    html += `<div class="section"><div class="section-title">Monthly Accuracy Trend</div><div class="monthly-chart">`;
+    html += `<div class="chart-bars" style="position:relative">`;
+    // Reference lines
+    html += `<div class="chart-baseline" style="bottom:${((50-minDisplay)/(maxAcc-minDisplay))*100}%">50%</div>`;
+    html += `<div class="chart-baseline" style="bottom:${((70-minDisplay)/(maxAcc-minDisplay))*100}%">70%</div>`;
+    for (const m of data.monthly_accuracy) {
+      const barH = Math.max(2, ((m.accuracy - minDisplay) / (maxAcc - minDisplay)) * 100);
+      const color = m.accuracy >= 68 ? 'var(--green)' : m.accuracy >= 62 ? 'var(--yellow)' : 'var(--red)';
+      const label = m.month.slice(2); // "24-03"
+      html += `
+        <div class="chart-bar-wrap">
+          <div class="chart-bar" style="height:${barH}%;background:${color}">
+            <div class="tooltip">${m.month}: ${m.accuracy}% (${m.total} matches)</div>
+          </div>
+          <span class="chart-label">${label}</span>
+        </div>
+      `;
+    }
+    html += `</div></div></div>`;
+  }
+
+  // League Breakdown
+  if (data.league_stats) {
+    html += `<div class="section"><div class="section-title">Accuracy by League</div><div class="league-grid">`;
+    const lgColors = { ATP: 'green', WTA: 'purple' };
+    for (const [lg, ls] of Object.entries(data.league_stats)) {
+      if (ls.total === 0) continue;
+      html += `
+        <div class="league-card">
+          <div class="league-name ${lgColors[lg] || ''}">${lg}</div>
+          <div class="league-acc ${lgColors[lg] || ''}">${ls.accuracy}%</div>
+          <div class="league-count">${ls.correct} / ${ls.total} matches</div>
+        </div>
+      `;
+    }
+    html += `</div></div>`;
+  }
+
+  // Calibration
+  html += `<div class="section"><div class="section-title">Calibration &mdash; Predicted vs Actual Win Rate</div><div class="calibration-grid">`;
+  for (const [range, d] of Object.entries(data.calibration)) {
+    if (d.total === 0) continue;
+    html += `
+      <div class="cal-card">
+        <div class="range">${range}% predicted</div>
+        <div class="cal-bar-container">
+          <div class="cal-bar-predicted" style="width:${d.avg_predicted_pct}%"></div>
+          <div class="cal-bar-actual" style="width:${d.actual_pct}%"></div>
+        </div>
+        <div class="cal-labels">
+          <span class="predicted">Pred: ${d.avg_predicted_pct}%</span>
+          <span class="actual">Actual: ${d.actual_pct}%</span>
+        </div>
+        <div class="cal-count">${d.total} matches</div>
+      </div>
+    `;
+  }
+  html += `</div></div>`;
+
+  // Confidence Accuracy
+  html += `<div class="section"><div class="section-title">Accuracy by Confidence Level</div><div class="conf-grid">`;
+  const confLabels = { high: 'High (70%+)', medium: 'Medium (40-70%)', low: 'Low (<40%)' };
+  const confColors = { high: 'green', medium: 'yellow', low: 'red' };
+  for (const [key, d] of Object.entries(data.confidence_accuracy)) {
+    html += `
+      <div class="conf-card">
+        <div class="conf-level ${confColors[key]}">${confLabels[key]}</div>
+        <div class="conf-acc ${confColors[key]}">${d.accuracy}%</div>
+        <div class="conf-count">${d.correct} / ${d.total} matches</div>
+      </div>
+    `;
+  }
+  html += `</div></div>`;
+
+  // Value Bets Results
+  if (data.value_bets && data.value_bets.length > 0) {
+    html += `<div class="section"><div class="section-title">Value Bet Results (Top 50)</div><div class="table-container"><div class="table-scroll"><table class="results-table">`;
+    html += `<thead><tr><th>Match</th><th>Book</th><th>Player</th><th>Odds</th><th>Edge</th><th>Result</th><th>P/L</th></tr></thead><tbody>`;
+    for (const vb of data.value_bets) {
+      const wonClass = vb.won ? 'profit-positive' : 'profit-negative';
+      const badge = vb.won ? '<span class="result-badge result-correct">WON</span>' : '<span class="result-badge result-wrong">LOST</span>';
+      html += `<tr>
+        <td style="color:var(--text-dim)">${vb.match}</td>
+        <td style="text-transform:capitalize">${vb.bookmaker}</td>
+        <td>${vb.player}</td>
+        <td>${vb.odds}</td>
+        <td><span style="color:var(--yellow)">+${vb.edge}%</span></td>
+        <td>${badge}</td>
+        <td class="${wonClass}">${vb.profit > 0 ? '+' : ''}${vb.profit}u</td>
+      </tr>`;
+    }
+    html += `</tbody></table></div></div></div>`;
+  }
+
+  // Match Results - store globally, render paginated (most recent first)
+  window._allMatches = data.matches.slice().reverse();
+  window._currentFilter = 'all';
+  window._currentPage = 0;
+  window._pageSize = 100;
+
+  html += `
+    <div class="section">
+      <div class="section-title">Match Results (newest first)</div>
+      <div class="table-container">
+        <div class="table-controls">
+          <div class="table-filter">
+            <button class="filter-btn active" data-filter="all">All (${data.matches.length})</button>
+            <button class="filter-btn" data-filter="correct">Correct (${data.matches.filter(m=>m.correct).length})</button>
+            <button class="filter-btn" data-filter="wrong">Wrong (${data.matches.filter(m=>!m.correct).length})</button>
+            <button class="filter-btn" data-filter="upset">Upsets (${data.matches.filter(m=>m.upset).length})</button>
+          </div>
+          <div id="pageInfo" style="font-size:0.75rem;color:var(--text-muted)"></div>
+        </div>
+        <div class="table-scroll">
+          <table class="results-table">
+            <thead><tr>
+              <th>Date</th>
+              <th>League</th>
+              <th>Match</th>
+              <th>Predicted</th>
+              <th>Prob</th>
+              <th>Actual</th>
+              <th>Odds</th>
+              <th>NN</th>
+            </tr></thead>
+            <tbody id="matchesBody"></tbody>
+          </table>
+        </div>
+        <div style="display:flex;justify-content:center;gap:0.5rem;padding:0.75rem">
+          <button class="filter-btn" onclick="changePage(-1)" id="prevBtn">Previous</button>
+          <button class="filter-btn" onclick="changePage(1)" id="nextBtn">Next</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('content').innerHTML = html;
+  renderMatchPage();
+
+  // Wire up filter buttons
+  document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-btn[data-filter]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      window._currentFilter = btn.dataset.filter;
+      window._currentPage = 0;
+      renderMatchPage();
+    });
+  });
+}
+
+function getFilteredMatches() {
+  const f = window._currentFilter;
+  if (f === 'all') return window._allMatches;
+  if (f === 'correct') return window._allMatches.filter(m => m.correct);
+  if (f === 'wrong') return window._allMatches.filter(m => !m.correct);
+  if (f === 'upset') return window._allMatches.filter(m => m.upset);
+  return window._allMatches;
+}
+
+function renderMatchPage() {
+  const filtered = getFilteredMatches();
+  const start = window._currentPage * window._pageSize;
+  const end = Math.min(start + window._pageSize, filtered.length);
+  const page = filtered.slice(start, end);
+  const totalPages = Math.ceil(filtered.length / window._pageSize);
+
+  let rows = '';
+  for (const m of page) {
+    const badge = m.correct
+      ? '<span class="result-badge result-correct">CORRECT</span>'
+      : m.upset
+        ? '<span class="result-badge result-upset">UPSET</span>'
+        : '<span class="result-badge result-wrong">WRONG</span>';
+    const date = m.date ? new Date(m.date).toLocaleDateString([], {month:'short', day:'numeric', year:'numeric'}) : '';
+    const nnBadge = m.nn_correct === true
+      ? '<span class="result-badge result-correct" style="background:#2e1065;color:#8b5cf6">NN OK</span>'
+      : m.nn_correct === false
+        ? '<span class="result-badge result-wrong" style="background:#4c1d95;color:#c084fc">NN X</span>'
+        : '<span style="color:var(--text-muted);font-size:0.7rem">-</span>';
+    rows += `<tr>
+      <td style="color:var(--text-muted)">${date}</td>
+      <td><span style="font-size:0.7rem;padding:0.15rem 0.4rem;background:${m.league==='ATP'?'var(--green-dim)':'#312e81'};color:${m.league==='ATP'?'var(--green)':'var(--purple)'};border-radius:3px;font-weight:600">${m.league}</span></td>
+      <td>${m.home} vs ${m.away}</td>
+      <td style="font-weight:600">${m.predicted_winner}</td>
+      <td>${m.predicted_prob}%</td>
+      <td style="font-weight:600;color:${m.correct ? 'var(--green)' : 'var(--red)'}">${m.actual_winner}</td>
+      <td>${badge}</td>
+      <td>${nnBadge}</td>
+    </tr>`;
+  }
+  document.getElementById('matchesBody').innerHTML = rows;
+  document.getElementById('pageInfo').textContent = `${start+1}-${end} of ${filtered.length} (page ${window._currentPage+1}/${totalPages})`;
+  document.getElementById('prevBtn').disabled = window._currentPage === 0;
+  document.getElementById('nextBtn').disabled = end >= filtered.length;
+}
+
+function changePage(dir) {
+  const filtered = getFilteredMatches();
+  const totalPages = Math.ceil(filtered.length / window._pageSize);
+  window._currentPage = Math.max(0, Math.min(totalPages - 1, window._currentPage + dir));
+  renderMatchPage();
+}
+
+async function loadBacktest() {
+  const content = document.getElementById('content');
+  content.innerHTML = `
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <div>Running backtest... fetching historical data</div>
+      <div style="margin-top:0.5rem;font-size:0.8rem;color:#475569">First run fetches all historical data and may take 1-2 minutes. Subsequent loads are cached.</div>
+    </div>
+  `;
+
+  try {
+    const resp = await fetch(`/api/backtest?period=${currentPeriod}`);
+    const data = await resp.json();
+    if (!data.success) throw new Error(data.error || 'Backtest failed');
+    renderBacktest(data);
+  } catch (err) {
+    content.innerHTML = `<div class="error-state">Backtest failed: ${err.message}</div>`;
+  }
+}
+
+loadBacktest();
+</script>
+</body>
+</html>

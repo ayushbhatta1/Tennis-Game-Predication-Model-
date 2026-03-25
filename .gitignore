@@ -1,0 +1,42 @@
+# Environment & secrets
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+.venv/
+venv/
+
+# Model artifacts (large binaries)
+model/*.pkl
+model/*.pt
+model/*.npy
+model/*.json
+
+# Training artifacts
+catboost_info/
+*.log
+
+# Cache & data
+cache/
+backtest_cache.json
+
+# Historical data (large CSVs - download separately)
+historical/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+.claude/
+
+# Static generated
+static/*.css.map
