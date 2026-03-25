@@ -11,7 +11,7 @@ import requests
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request as req
 
-from predictor import calculate_prediction
+from predictor import calculate_prediction, find_value_bets, extract_odds_data, american_to_probability
 from backtester import run_backtest, run_full_backtest
 from parlay import find_best_parlays
 from nn_predict import nn_predict_event, load_nn_model
@@ -145,6 +145,15 @@ def get_predictions():
                             pred.update(mega_pred)
                     except Exception:
                         pass
+                # Recalculate value bets with ML model data
+                if pred["has_odds"]:
+                    odds_data = extract_odds_data(event)
+                    if odds_data:
+                        home_prob = pred["home"]["win_prob"] / 100
+                        away_prob = pred["away"]["win_prob"] / 100
+                        pred["value_bets"] = find_value_bets(
+                            odds_data, home_prob, away_prob, pred
+                        )
                 predictions.append(pred)
 
             with_odds = [p for p in predictions if p["has_odds"]]

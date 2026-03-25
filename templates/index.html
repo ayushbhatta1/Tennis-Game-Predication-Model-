@@ -629,11 +629,12 @@ function renderMatch(p) {
           <span>${vb.book_odds}</span>
           <span style="color:var(--text-muted)">${vb.implied_prob}% \u2192 ${vb.predicted_prob}%</span>
           <span class="edge-pill">+${vb.edge}%</span>
+          ${vb.confirmed_by ? `<span style="font-size:0.65rem;color:var(--green);font-weight:600">${vb.confirmed_by}</span>` : ''}
         </div>
       `).join('');
       valueBetsHtml = `
         <div class="details-section">
-          <h4>Value Bets (3%+ Edge)</h4>
+          <h4>ML-Confirmed Value Bets (5%+ Edge)</h4>
           <div class="value-bets-list">${rows}</div>
         </div>
       `;

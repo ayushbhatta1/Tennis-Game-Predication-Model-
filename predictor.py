@@ -288,48 +288,81 @@ def calculate_prediction(event, use_opening=False):
 
 
 def find_value_bets(odds_data, home_prob, away_prob, prediction):
-    """Identify bookmaker odds that offer value vs predicted probability."""
+    """Identify value bets using mega XGBoost model with NN directional confirmation.
+
+    Requirements (all must be met):
+      1. Mega model (XGBoost) must favor this side at >58%
+      2. NN model must agree directionally (same winner, >50%)
+      3. Mega probability exceeds best bookmaker implied prob by 5%+
+      4. Only the best-odds bookmaker shown per side (not all 30)
+
+    Uses mega (XGBoost) as the probability source because the NN is poorly
+    calibrated (outputs ~5% or ~95% for most matches). NN serves only as
+    directional confirmation that a second model agrees on the winner.
+    """
     value_bets = []
 
-    for side, prob, player_info in [
+    mega_home = prediction.get("mega_home_prob")
+    nn_home = prediction.get("nn_home_prob")
+
+    # Need at least the mega model
+    if mega_home is None:
+        return value_bets
+
+    for side, odds_prob, player_info in [
         ("home", home_prob, prediction["home"]),
         ("away", away_prob, prediction["away"]),
     ]:
-        # Check individual bookmaker odds
+        mega_side = mega_home / 100 if side == "home" else (100 - mega_home) / 100
+
+        # Mega must strongly favor this side
+        if mega_side <= 0.58:
+            continue
+
+        # NN directional confirmation (if available)
+        confirmed_by = "mega"
+        if nn_home is not None:
+            nn_side = nn_home / 100 if side == "home" else (100 - nn_home) / 100
+            if nn_side <= 0.50:
+                continue  # NN disagrees on the winner — skip
+            confirmed_by = "mega+nn"
+
+        # Find best bookmaker odds (lowest implied prob = best payout)
+        best_bk = None
+        best_bk_prob = 1.0
+        best_odds = None
+
         for bk, odds_str in odds_data[side]["by_bookmaker"].items():
             bk_prob = american_to_probability(odds_str)
-            if not bk_prob:
-                continue
+            if bk_prob and bk_prob < best_bk_prob:
+                best_bk_prob = bk_prob
+                best_bk = bk
+                best_odds = odds_str
 
-            edge = prob - bk_prob
-            if edge > 0.03:  # 3%+ edge threshold
-                value_bets.append({
-                    "bookmaker": bk,
-                    "player": player_info["name"],
-                    "side": side,
-                    "book_odds": odds_str,
-                    "implied_prob": round(bk_prob * 100, 1),
-                    "predicted_prob": round(prob * 100, 1),
-                    "edge": round(edge * 100, 1),
-                })
-
-        # Also check overall book odds (fair vs book spread = value)
-        if not odds_data[side]["by_bookmaker"]:
+        if best_bk is None:
             book_odds = odds_data[side]["book_odds"]
             if book_odds:
                 bk_prob = american_to_probability(book_odds)
                 if bk_prob:
-                    edge = prob - bk_prob
-                    if edge > 0.03:
-                        value_bets.append({
-                            "bookmaker": "market",
-                            "player": player_info["name"],
-                            "side": side,
-                            "book_odds": book_odds,
-                            "implied_prob": round(bk_prob * 100, 1),
-                            "predicted_prob": round(prob * 100, 1),
-                            "edge": round(edge * 100, 1),
-                        })
+                    best_bk = "market"
+                    best_bk_prob = bk_prob
+                    best_odds = book_odds
+
+        if best_bk is None:
+            continue
+
+        edge = mega_side - best_bk_prob
+        if edge > 0.05:  # 5%+ edge vs best available odds
+            value_bets.append({
+                "bookmaker": best_bk,
+                "player": player_info["name"],
+                "side": side,
+                "book_odds": best_odds,
+                "implied_prob": round(best_bk_prob * 100, 1),
+                "predicted_prob": round(mega_side * 100, 1),
+                "edge": round(edge * 100, 1),
+                "confirmed_by": confirmed_by,
+            })
 
     value_bets.sort(key=lambda x: x["edge"], reverse=True)
     return value_bets
