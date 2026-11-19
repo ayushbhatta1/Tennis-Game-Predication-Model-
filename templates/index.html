@@ -507,6 +507,11 @@
 </div>
 
 <script>
+// Escape text from the odds API or the search box before putting it in innerHTML
+function esc(v) {
+  return String(v ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+}
+
 let currentLeague = 'ALL';
 let allPredictions = [];
 
@@ -558,7 +563,7 @@ function filterMatches(query) {
     (p.away && p.away.name && p.away.name.toLowerCase().includes(q))
   );
   if (filtered.length === 0) {
-    grid.innerHTML = `<div class="no-matches">No matches found for "${query}"</div>`;
+    grid.innerHTML = `<div class="no-matches">No matches found for "${esc(query)}"</div>`;
   } else {
     grid.innerHTML = filtered.map(renderMatch).join('');
   }
@@ -645,7 +650,7 @@ function renderMatch(p) {
     if (p.bookmakers && p.bookmakers.length > 0) {
       const bkRows = p.bookmakers.map(bk => `
         <div class="bk-row">
-          <span class="bk-name">${bk.name}</span>
+          <span class="bk-name">${esc(bk.name)}</span>
           <span>${bk.home_odds} / ${bk.away_odds}</span>
         </div>
       `).join('');
@@ -663,12 +668,12 @@ function renderMatch(p) {
   return `
     <div class="match-card ${noOddsClass}" onclick="this.classList.toggle('expanded')">
       <div class="match-top">
-        <span class="match-league">${p.league || 'TENNIS'}</span>
+        <span class="match-league">${esc(p.league || 'TENNIS')}</span>
         <span class="match-time">${formatTime(p.starts_at)}</span>
       </div>
       <div class="match-body">
         <div class="player home">
-          <div class="player-name ${homeWinClass}">${p.home.name}</div>
+          <div class="player-name ${homeWinClass}">${esc(p.home.name)}</div>
           ${p.has_odds ? `<div class="player-odds">Book <strong>${p.home.book_odds}</strong> &middot; Fair <span class="fair">${p.home.fair_odds}</span></div>` : ''}
         </div>
         <div class="vs-section">
@@ -707,7 +712,7 @@ function renderMatch(p) {
           ` : `<div style="color:var(--text-muted);font-size:0.8rem">No odds yet</div>`}
         </div>
         <div class="player away">
-          <div class="player-name ${awayWinClass}">${p.away.name}</div>
+          <div class="player-name ${awayWinClass}">${esc(p.away.name)}</div>
           ${p.has_odds ? `<div class="player-odds">Book <strong>${p.away.book_odds}</strong> &middot; Fair <span class="fair">${p.away.fair_odds}</span></div>` : ''}
         </div>
       </div>
@@ -762,7 +767,7 @@ async function loadPredictions() {
       grid.innerHTML = offlineBanner + predictions.map(renderMatch).join('');
     }
   } catch (err) {
-    grid.innerHTML = `<div class="error-state">Failed to load predictions: ${err.message}</div>`;
+    grid.innerHTML = `<div class="error-state">Failed to load predictions: ${esc(err.message)}</div>`;
   } finally {
     btn.classList.remove('loading');
     btn.textContent = 'Refresh';
