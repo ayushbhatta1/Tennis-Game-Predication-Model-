@@ -50,6 +50,16 @@ SNAPSHOT_UPCOMING = os.path.join(CACHE_DIR, "upcoming_snapshot.json")
 SNAPSHOT_PARLAYS = os.path.join(CACHE_DIR, "parlays_snapshot.json")
 
 
+def _arg(name, cast, default, lo, hi):
+    """Read a numeric query parameter; bad or out-of-range input falls back
+    to the default / nearest bound instead of a 500 error."""
+    try:
+        val = cast(req.args.get(name, default))
+    except (TypeError, ValueError):
+        return default
+    return max(lo, min(hi, val))
+
+
 def api_available():
     """Quick check if API key works."""
     if not API_KEY:
@@ -244,8 +254,8 @@ def get_backtest():
 @app.route("/api/parlays")
 def get_parlays():
     """Find best parlays. Falls back to cached snapshot."""
-    bankroll = float(req.args.get("bankroll", 120))
-    max_legs = int(req.args.get("max_legs", 4))
+    bankroll = _arg("bankroll", float, 120, 1, 1_000_000)
+    max_legs = _arg("max_legs", int, 4, 2, 8)
     league = req.args.get("league", "ALL")
 
     try:
@@ -305,9 +315,9 @@ def get_mega_parlays():
     if find_todays_parlays is None:
         return jsonify({"success": False, "error": "Mega parlay not available"}), 501
 
-    bankroll = float(req.args.get("bankroll", 120))
-    min_conf = int(req.args.get("min_confidence", 60))
-    num_legs = int(req.args.get("legs", 3))
+    bankroll = _arg("bankroll", float, 120, 1, 1_000_000)
+    min_conf = _arg("min_confidence", int, 60, 0, 100)
+    num_legs = _arg("legs", int, 3, 2, 8)
 
     try:
         result = find_todays_parlays(
@@ -374,4 +384,7 @@ def parlays_page():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5050)
+    # The Werkzeug debugger runs arbitrary code from the browser, so it is
+    # opt-in (FLASK_DEBUG=1) and the app only listens on this machine.
+    debug = os.getenv("FLASK_DEBUG", "0") == "1"
+    app.run(host="127.0.0.1", port=5050, debug=debug)

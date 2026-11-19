@@ -9,7 +9,13 @@ import os
 import time
 import requests
 
-API_KEY = "052ad81a89543e7c59737853ec205d2c"
+from dotenv import load_dotenv
+
+load_dotenv()
+# Never commit the key: put SGO_API_KEY in .env (see .env.example).
+API_KEY = os.getenv("SGO_API_KEY")
+if not API_KEY:
+    raise SystemExit("Set SGO_API_KEY in your environment or .env first.")
 HEADERS = {"X-Api-Key": API_KEY}
 BASE = "https://api.sportsgameodds.com/v2"
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "cache")
