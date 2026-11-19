@@ -280,14 +280,32 @@ def backtest_parlays(
     top_picks=8,
     picks_per_day=1,
     bet_size=10.0,
-    start_date="2024-06-01",
-    end_date="2026-03-18",
+    start_date="2026-03-01",
+    end_date=None,
+    allow_in_sample=False,
 ):
     """
-    Backtest the 3-leg parlay strategy across all historical data.
+    Backtest the 3-leg parlay strategy on matches the model never trained on.
 
     Strategy: each day, pick the best 3-leg parlay from top-confidence matches.
+
+    The XGBoost model is trained on matches before 2026-03-01
+    (build_training_data.py), so earlier dates are in-sample and their ROI
+    is not evidence of edge. The default window starts at that cutoff and
+    runs to today; pass allow_in_sample=True to look at older dates anyway.
     """
+    train_cutoff = "2026-03-01"
+    if end_date is None:
+        end_date = datetime.now().strftime("%Y-%m-%d")
+    if start_date < train_cutoff:
+        if not allow_in_sample:
+            print(f"start_date {start_date} is before the model's training "
+                  f"cutoff ({train_cutoff}); using {train_cutoff} instead. "
+                  f"Pass allow_in_sample=True to override.")
+            start_date = train_cutoff
+        else:
+            print(f"WARNING: dates before {train_cutoff} are in the model's "
+                  f"training data; their results are in-sample.")
     print("Loading models...")
     xgb_models = load_xgb_model()
     if xgb_models is None:

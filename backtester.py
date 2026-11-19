@@ -15,7 +15,8 @@ from dateutil.relativedelta import relativedelta
 import requests
 from dotenv import load_dotenv
 
-from predictor import calculate_prediction, american_to_probability
+from predictor import (calculate_prediction, american_to_probability,
+                       extract_odds_data, find_value_bets)
 
 load_dotenv()
 
@@ -25,6 +26,23 @@ HEADERS = {"X-Api-Key": API_KEY}
 
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "cache")
 os.makedirs(CACHE_DIR, exist_ok=True)
+
+# The NN and mega models are trained on matches before this date
+# (build_training_data.py: train < 2026-03-01). Scoring them on earlier
+# matches would grade them on their own training data, so the backtest only
+# counts their accuracy -- and only books their value bets -- from here on.
+MODEL_TRAIN_CUTOFF = "2026-03-01"
+
+
+def _american_profit(odds_str):
+    """Profit per 1 unit staked at American odds; None if unreadable."""
+    try:
+        odds = int(str(odds_str).strip())
+    except (TypeError, ValueError):
+        return None
+    if odds == 0:
+        return None
+    return odds / 100 if odds > 0 else 100 / abs(odds)
 
 
 def determine_actual_winner(event):
@@ -189,6 +207,7 @@ def analyze_events(events):
     for bucket in ["50-60", "60-70", "70-80", "80-90", "90-100"]:
         nn_calibration[bucket] = {"predicted": 0, "correct": 0, "total": 0}
     nn_monthly = {}
+    ml_in_sample_skipped = 0  # matches before MODEL_TRAIN_CUTOFF (not scored for NN/mega)
 
     calibration = {}
     for bucket in ["50-60", "60-70", "70-80", "80-90", "90-100"]:
@@ -228,6 +247,11 @@ def analyze_events(events):
         if actual_winner is None:
             continue
 
+        event_date = (event.get("status", {}).get("startsAt") or "")[:10]
+        out_of_sample = bool(event_date) and event_date >= MODEL_TRAIN_CUTOFF
+        if not out_of_sample and (has_nn or has_mega):
+            ml_in_sample_skipped += 1
+
         predicted_winner = prediction.get("predicted_winner")
         winner_prob = prediction.get("winner_prob", 50)
         confidence = prediction.get("confidence", 0)
@@ -245,7 +269,7 @@ def analyze_events(events):
         # NN prediction
         nn_pred = None
         nn_correct_flag = None
-        if has_nn:
+        if has_nn and out_of_sample:
             nn_pred = nn_predict_event(event)
             if nn_pred:
                 nn_winner = nn_pred["nn_winner"]
@@ -289,7 +313,7 @@ def analyze_events(events):
         # Mega prediction
         mega_pred = None
         mega_correct_flag = None
-        if has_mega and mega_predict_match:
+        if has_mega and mega_predict_match and out_of_sample:
             try:
                 mega_pred = mega_predict_match(event)
             except Exception:
@@ -327,6 +351,19 @@ def analyze_events(events):
                 mega_monthly[mm]["total"] += 1
                 if mega_is_correct:
                     mega_monthly[mm]["correct"] += 1
+
+        # Value bets need the model probabilities, which calculate_prediction
+        # doesn't have yet (it returned none for every match before this fix).
+        if out_of_sample and (nn_pred or mega_pred):
+            if nn_pred:
+                prediction.update(nn_pred)
+            if mega_pred:
+                prediction.update(mega_pred)
+            odds_data = extract_odds_data(event, use_opening=has_opening)
+            if odds_data:
+                prediction["value_bets"] = find_value_bets(
+                    odds_data, prediction["home"]["win_prob"] / 100,
+                    prediction["away"]["win_prob"] / 100, prediction)
 
         # Actual winner info
         if actual_winner == "home":
@@ -409,11 +446,10 @@ def analyze_events(events):
         # --- Value Bets ---
         for vb in prediction.get("value_bets", []):
             vb_won = vb["side"] == actual_winner
-            odds_val = int(vb["book_odds"])
-            if vb_won:
-                profit = odds_val / 100 if odds_val > 0 else 100 / abs(odds_val)
-            else:
-                profit = -1.0
+            win_profit = _american_profit(vb["book_odds"])
+            if win_profit is None:
+                continue  # unreadable odds: can't book this bet
+            profit = win_profit if vb_won else -1.0
             value_bet_results.append({
                 "match": f"{prediction['home']['name']} vs {prediction['away']['name']}",
                 "bookmaker": vb["bookmaker"],
@@ -499,6 +535,8 @@ def analyze_events(events):
         "mega_stats": _build_model_stats(
             mega_total, mega_correct, mega_calibration, mega_monthly, has_mega
         ),
+        "model_train_cutoff": MODEL_TRAIN_CUTOFF,
+        "ml_in_sample_skipped": ml_in_sample_skipped,
     }
 
 
