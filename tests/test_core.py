@@ -37,3 +37,15 @@ def test_value_bets_need_model_probability():
     pred["mega_home_prob"] = 70.0  # model 70% on a +120 (45%) home side
     bets = find_value_bets(_odds("+120", "-140"), 0.45, 0.55, pred)
     assert [b["side"] for b in bets] == ["home"]
+
+
+def test_api_samples_skip_matches_already_in_store_history():
+    import build_training_data as btd
+
+    store = {"records": [{"date": "20250105"}, {"date": "20241230"}]}
+    end = btd.store_last_date(store)
+    assert end == "20250105"
+    assert btd.stats_include_match(end, "20250105")      # same tournament week
+    assert btd.stats_include_match(end, "20241201")      # inside history
+    assert not btd.stats_include_match(end, "20250110")  # after history: fine
+    assert not btd.stats_include_match("", "20250110")

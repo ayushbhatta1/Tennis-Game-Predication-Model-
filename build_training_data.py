@@ -98,6 +98,23 @@ def build_historical_samples(store):
     return X, y, meta
 
 
+def store_last_date(store):
+    """Latest match date (YYYYMMDD) folded into the store's rolling stats."""
+    return max((r.get("date", "") for r in store.get("records", [])), default="")
+
+
+def stats_include_match(store_end, date_compact):
+    """True when end-of-store stats were built from data on or after this match.
+
+    API samples look players up in the store's FINAL state (Elo, form, H2H,
+    serve). If the historical files run past the API match date, that state
+    already contains the match result, which leaks the label into the
+    features. Sackmann dates are tournament start dates, so a match on the
+    same day as the store's last tournament is treated as overlapping too.
+    """
+    return bool(store_end) and bool(date_compact) and date_compact <= store_end
+
+
 def build_api_samples(store):
     """Build training samples from API cached events."""
     import glob as globmod
@@ -116,6 +133,8 @@ def build_api_samples(store):
     matched = 0
     unmatched = 0
     no_winner = 0
+    overlap_skipped = 0
+    store_end = store_last_date(store)
 
     for filepath in files:
         with open(filepath) as f:
@@ -155,6 +174,12 @@ def build_api_samples(store):
             # Build player stats from store
             league = event.get("leagueID", "ATP")
             has_history = bool(home_sid) and bool(away_sid)
+
+            if has_history and stats_include_match(store_end, date_compact):
+                # The stored stats already include this match; skip it rather
+                # than train on features that know the result.
+                overlap_skipped += 1
+                continue
 
             if has_history:
                 # Look up stats from the store's rolling state
@@ -204,7 +229,8 @@ def build_api_samples(store):
                 "event_id": event.get("eventID", ""),
             })
 
-    print(f"  API: {len(X)} samples (matched={matched}, unmatched={unmatched}, no_winner={no_winner})")
+    print(f"  API: {len(X)} samples (matched={matched}, unmatched={unmatched}, "
+          f"no_winner={no_winner}, skipped_overlap_with_history={overlap_skipped})")
     return X, y, meta
 
 
